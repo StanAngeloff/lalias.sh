@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-eqiv='content-type' content='text/html;charset=utf-8'>
+    <title>lalias.sh</title>
+    <link rel=stylesheet href="http://jashkenas.github.com/docco/resources/docco.css">
+</head>
+<body>
+<div id=container>
+    <div id=background></div>
+    <table cellspacing=0 cellpadding=0>
+    <thead>
+      <tr>
+        <th class=docs><h1>lalias.sh</h1></th>
+        <th class=code></th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr><td class='docs'><p><strong>lalias</strong> is <a href="http://www.zsh.org/">Zsh</a> shell extension that allows you to have
+directory-specific command aliases. It is intended as a development tool.</p>
+
+<p>The original idea was to allow locally installed <a href="http://nodejs.org">Node.js</a> modules to
+be used without having to put them on <code>$PATH</code>.</p>
+
+<h2>Usage</h2>
+
+<p>To use this script, source it in your <code>~/.zshrc</code> file. For each directory
+you want to have aliases available in, create an <code>.aliases</code> file and add
+each command on a separate line:</p>
+
+<pre><code>say=echo
+jake=./app/node_modules/.bin/jake  # ./ is relative to the .aliases file
+</code></pre>
+
+<p><strong>NOTE</strong>: you can only use commands that don't have a binding yet, e.g., if
+you have a <code>jake</code> binary on path, it will be executed. This script only runs
+for commands that are not found.</p>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<h2>Functions</h2>
+
+</td><td class=code><div class=highlight><pre>
+<span class="c">#!/bin/sh</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Checks if a function is defined.</p>
+
+<p><code>$?</code> is <code>0</code> if the function exists, <code>1</code> otherwise.</p>
+
+</td><td class=code><div class=highlight><pre>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Saves a function under a new name if it doesn't already exist.</p>
+
+</td><td class=code><div class=highlight><pre>
+lalias_function_exists<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">declare</span> -f <span class="nv">$1</span> &gt; /dev/null
+<span class="o">}</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Substitute the original function name with the new one and evaluate.
+This generates a copy under the new name.</p>
+
+</td><td class=code><div class=highlight><pre>
+lalias_function_save<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">local </span>original_function
+  <span class="nb">local </span>new_function
+  lalias_function_exists <span class="nv">$2</span> <span class="o">||</span> <span class="o">{</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<h2>Script</h2>
+
+</td><td class=code><div class=highlight><pre>
+    <span class="nv">original_function</span><span class="o">=</span><span class="k">$(</span><span class="nb">declare</span> -f <span class="nv">$1</span><span class="k">)</span>
+    <span class="nv">new_function</span><span class="o">=</span><span class="s2">&quot;$2${original_function#$1}&quot;</span>
+    <span class="nb">eval</span> <span class="s2">&quot;$new_function&quot;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>In order to prevent this script executing itself over and over again, add
+a global variable to track nesting level.</p>
+
+</td><td class=code><div class=highlight><pre>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>By default we are running as a shell script.</p>
+
+</td><td class=code><div class=highlight><pre>
+<span class="nv">LALIAS_LEVEL</span><span class="o">=</span>0
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Check if we are running inside Zsh.</p>
+
+</td><td class=code><div class=highlight><pre>
+<span class="nv">LALIAS_ZSH</span><span class="o">=</span>0
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>We are running on the command-line. <br />
+Someone once said this was the most important line in any shell program.</p>
+
+</td><td class=code><div class=highlight><pre>
+<span class="k">if </span><span class="nb">type </span>setopt 2&gt;/dev/null | grep -q <span class="s1">&#39;shell builtin&#39;</span>; <span class="k">then</span>
+<span class="k">  </span><span class="nv">LALIAS_ZSH</span><span class="o">=</span>1
+<span class="k">else</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Set the default basename for the configuration file. This can be overwritten
+by setting the <code>LALIAS_BASENAME</code> (environment) variable before sourcing this
+script file.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nb">set</span> -e
+<span class="k">fi</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Check if <code>command_not_found_handler</code> is already defined.</p>
+
+</td><td class=code><div class=highlight><pre>
+<span class="k">if</span> <span class="o">[</span> -z <span class="s2">&quot;$LALIAS_BASENAME&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+<span class="k">  </span><span class="nv">LALIAS_BASENAME</span><span class="o">=</span><span class="s1">&#39;.aliases&#39;</span>
+<span class="k">fi</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>If it is, save it under a new name so it can be used in case the script
+fails to find a local alias to execute.</p>
+
+</td><td class=code><div class=highlight><pre>
+<span class="k">if </span>lalias_function_exists command_not_found_handler; <span class="k">then</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>When Zsh fails to execute a command, it calls <code>command_not_found_handler</code>.</p>
+
+</td><td class=code><div class=highlight><pre>
+  lalias_function_save command_not_found_handler lalias_previous_handler
+<span class="k">fi</span>
+
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Forward all arguments to <code>lalias_command</code> and attempt to find a
+suitable replacement.</p>
+
+</td><td class=code><div class=highlight><pre>
+command_not_found_handler<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">local </span>exit_code
+</pre></div></td></tr><tr><td class=docs>
+
+<p>If there are no suitable command, revert to the previous handler
+if one was defined.</p>
+
+</td><td class=code><div class=highlight><pre>
+  lalias_command <span class="nv">$*</span> <span class="o">||</span> <span class="o">{</span>
+    <span class="nv">exit_code</span><span class="o">=</span><span class="nv">$?</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Return the last code. If it was a failure this instructs Zsh to take the
+default action and print a 'command not found' statement. If it was a
+success, Zsh is silent and the command is considered handled.</p>
+
+</td><td class=code><div class=highlight><pre>
+    <span class="k">if </span>lalias_function_exists lalias_previous_handler; <span class="k">then</span>
+<span class="k">      </span>lalias_previous_handler <span class="nv">$*</span>
+      <span class="nv">exit_code</span><span class="o">=</span><span class="nv">$?</span>
+    <span class="k">fi</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Allow a maximum of 5 levels of nesting.</p>
+
+</td><td class=code><div class=highlight><pre>
+    <span class="k">return</span> <span class="nv">$exit_code</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+lalias_command<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">local </span>previous_ifs
+  <span class="nb">local </span>parts
+  <span class="nb">local </span>slice
+  <span class="nb">local </span>directory
+  <span class="nb">local </span>file
+  <span class="nb">local </span>aliases
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Enable Zsh shell word splitting to mimic sh/bash behaviour.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="k">if</span> <span class="o">[</span> <span class="s2">&quot;$LALIAS_LEVEL&quot;</span> -gt 5 <span class="o">]</span>; <span class="k">then</span>
+<span class="k">    return </span>2
+  <span class="k">fi</span>
+<span class="k">  </span><span class="nb">let </span>LALIAS_LEVEL++
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Split the current working directory path into an array.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="k">if</span> <span class="o">[</span> <span class="nv">$LALIAS_ZSH</span> -eq 1 <span class="o">]</span>; <span class="k">then</span>
+<span class="k">    </span>setopt shwordsplit
+  <span class="k">fi</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Iterate over the parts of the array backwards.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nv">previous_ifs</span><span class="o">=</span><span class="s2">&quot;$IFS&quot;</span>
+  <span class="nv">IFS</span><span class="o">=</span><span class="s1">&#39;/&#39;</span>
+  <span class="nv">parts</span><span class="o">=(</span> <span class="nv">$PWD</span> <span class="o">)</span>
+  <span class="nv">aliases</span><span class="o">=(</span> <span class="s2">&quot;$HOME/.aliases&quot;</span> <span class="o">)</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Create each part by taking a slice and joining all pieces.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="k">for </span>i in <span class="o">{</span><span class="k">${#</span><span class="nv">parts</span><span class="p">[@]</span><span class="k">}</span>..1<span class="o">}</span>; <span class="k">do</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Test if the target directory is empty and skip.</p>
+
+</td><td class=code><div class=highlight><pre>
+    <span class="nv">slice</span><span class="o">=(</span> <span class="k">${</span><span class="nv">parts</span><span class="p">[@]:</span><span class="nv">0</span><span class="p">:</span><span class="nv">$i</span><span class="k">}</span> <span class="o">)</span>
+    <span class="nv">directory</span><span class="o">=</span><span class="s2">&quot;${slice[*]}&quot;</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Create the path and check if there is a file at that location.</p>
+
+</td><td class=code><div class=highlight><pre>
+    <span class="k">if</span> <span class="o">[</span> -n <span class="s2">&quot;$directory&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Push to the beginning of the list.</p>
+
+</td><td class=code><div class=highlight><pre>
+      <span class="nv">file</span><span class="o">=</span><span class="s2">&quot;$directory/$LALIAS_BASENAME&quot;</span>
+      <span class="k">if</span> <span class="o">[</span> -e <span class="s2">&quot;$file&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Restore the previous value of the Internal Field Separator.</p>
+
+</td><td class=code><div class=highlight><pre>
+        <span class="nv">aliases</span><span class="o">=(</span><span class="s2">&quot;$file&quot;</span> <span class="s2">&quot;${aliases[@]}&quot;</span><span class="o">)</span>
+      <span class="k">fi</span>
+<span class="k">    fi</span>
+<span class="k">  done</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>If we found at least one <code>.aliases</code> file, process each individually.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nv">IFS</span><span class="o">=</span><span class="s2">&quot;$previous_ifs&quot;</span>
+  <span class="nb">let </span>LALIAS_LEVEL--
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Look up the command in the <code>.aliases</code> file and take the last occurrence.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="k">if</span> <span class="o">[</span> <span class="k">${#</span><span class="nv">aliases</span><span class="p">[@]</span><span class="k">}</span> -gt 0 <span class="o">]</span>; <span class="k">then</span>
+<span class="k">    for </span>file in <span class="s2">&quot;${aliases[@]}&quot;</span>; <span class="k">do</span>
+<span class="k">      if</span> <span class="o">[</span> -n <span class="s2">&quot;$file&quot;</span> <span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="o">[</span> -e <span class="s2">&quot;$file&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+<span class="k">        </span>lalias_process <span class="nv">$file</span> <span class="nv">$*</span>
+        <span class="k">if</span> <span class="o">[</span> <span class="nv">$?</span> -eq 0 <span class="o">]</span>; <span class="k">then</span>
+<span class="k">          return </span>0
+        <span class="k">fi</span>
+<span class="k">      fi</span>
+<span class="k">    done</span>
+<span class="k">  fi</span>
+<span class="k">  return </span>1
+<span class="o">}</span>
+
+lalias_process<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">local alias</span>
+<span class="nb">  local command</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Chop everything before the <code>=</code> character and substitute <code>./</code> in the
+command for the directory of the <code>.aliases</code> file.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nb">alias</span><span class="o">=</span><span class="k">$(</span> cat <span class="s2">&quot;$1&quot;</span> | grep <span class="s2">&quot;^\\(alias \\)\\?$2=&quot;</span> | tail -1 <span class="k">)</span>
+  <span class="k">if</span> <span class="o">[</span> -z <span class="s2">&quot;$alias&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+<span class="k">    return </span>1
+  <span class="k">fi</span>
+</pre></div></td></tr><tr><td class=docs>
+
+<p>Evaluate and return exit code.</p>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nb">command</span><span class="o">=</span><span class="s2">&quot;${${alias#*=}/#.\//$( dirname &quot;</span><span class="nv">$1</span><span class="s2">&quot; )/}&quot;</span>
+</pre></div></td></tr><tr><td class=docs>
+
+</td><td class=code><div class=highlight><pre>
+  <span class="nb">eval</span> <span class="s2">&quot;$command ${${@:3}[*]}&quot;</span>
+  <span class="k">return</span> <span class="nv">$?</span>
+<span class="o">}</span>
+
+
+</pre></div></td></tr><tr><td class=docs>
+</td><td class=code><div class=highlight><pre></td><td class='code'></td></tr>
+    </tbody>
+    </table>
+</div>
+</body>
+</html>
