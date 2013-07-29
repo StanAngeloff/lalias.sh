@@ -127,7 +127,7 @@ lalias_command() {
     # Test if the target directory is empty and skip.
     if [ -n "$directory" ]; then
       # Create the path and check if there is a file at that location.
-      file="$directory/$LALIAS_BASENAME"
+      file="/${directory}/${LALIAS_BASENAME}"
       if [ -e "$file" ]; then
         # Push to the beginning of the list.
         aliases=("$file" "${aliases[@]}")
